@@ -134,10 +134,10 @@ class ModularCommandClient(discord.Client):
 
     Attributes:
         command_collections (dict): A dictionary of currently loaded CommandCollection objects
-        by name.
+        by non case sensitive names.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.command_collections = {}
 
@@ -146,6 +146,31 @@ class ModularCommandClient(discord.Client):
         self._unloaded_extensions = set()
 
     def load_extension(self, extension_name: str) -> None:
+        """
+        Loads a module and sets up its command collections.
+        The module should have a function named "setup", that takes a single "client" argument,
+        and returns a list of CommandCollection objects.
+        Before returning the list of CommandCollection objects, the setup function can
+        be used to also do some other initialization.
+
+        Parameters:
+            extension_name (str): The name of the module to load with importlib.
+
+        Example usage:
+            class MyCommandCollectionOne(CommandCollection):
+                ...
+
+            class MyCommandCollectionTwo(CommandCollection):
+                ...
+
+            def setup(client) -> list:
+                return [MyCommandCollectionOne(client), MyCommandCollectionTwo(client)]
+
+        Raises:
+            ModuleSetupException: Raised when the module setup fails.
+            ModuleAlreadyLoadedException: Raised when trying to load a module that is
+            already loaded.
+        """
         if extension_name not in self._module_cache:
             module = importlib.import_module(extension_name)
         elif extension_name not in self._unloaded_extensions:
@@ -173,6 +198,17 @@ class ModularCommandClient(discord.Client):
         self._collections_cache[extension_name] = command_collections
 
     def unload_extension(self, extension_name: str) -> None:
+        """
+        Unloads a module and its command collections.
+        This method does not unload the module itself from the memory,
+        but it unloads all of the corresponding command collections.
+
+        Parameters:
+            extension_name (str): The name of the module to unload.
+
+        Raises:
+            ModuleNotLoadedException: Raised when trying to unload a module that is not loaded.
+        """
         if extension_name not in self._module_cache or extension_name in self._unloaded_extensions:
             raise ModuleNotLoadedException(f"Module {extension_name} is not loaded")
 
@@ -185,14 +221,41 @@ class ModularCommandClient(discord.Client):
         self._unloaded_extensions.add(extension_name)
 
     def reload_extension(self, extension_name: str) -> None:
+        """
+        Shortcut for unloading and loading a module.
+        This method is equivalent to calling unload_extension and then load_extension.
+
+        Parameters:
+            extension_name (str): The name of the module to reload.
+        """
         self.unload_extension(extension_name)
         self.load_extension(extension_name)
 
     def get_command_collection(self, collection_name: str) -> CommandCollection:
+        """
+        Returns a loaded CommandCollection object by its name. (non case sensitive)
+
+        Parameters:
+            collection_name (str): The name of the CommandCollection object to return.
+
+        Raises:
+            KeyError: Raised when the collection is not loaded or the name is not found.
+        """
         return self.command_collections[collection_name]
 
     def load_command_collection(self, collection: CommandCollection) -> None:
-        collection_name = collection.__class__.__name__
+        """
+        Loads a CommandCollection object into the client and adds the application commands,
+        in that particular collection, to the client.
+
+        Parameters:
+            collection (CommandCollection): The CommandCollection object to load.
+
+        Raises:
+            CommandCollectionAlreadyLoadedException: Raised when trying to load a collection
+            that is already loaded.
+        """
+        collection_name = collection.__class__.__name__.lower()
 
         if collection_name in self.command_collections:
             raise CollectionAlreadyLoadedException(f"Collection {collection} is already loaded")
@@ -204,7 +267,18 @@ class ModularCommandClient(discord.Client):
         self.command_collections[collection_name] = collection
 
     def unload_command_collection(self, collection: CommandCollection) -> None:
-        collection_name = collection.__class__.__name__
+        """
+        Unloads a CommandCollection object from the client and removes the application commands,
+        in that particular collection, from the client.
+
+        Parameters:
+            collection (CommandCollection): The CommandCollection object to unload.
+
+        Raises:
+            CommandCollectionNotLoadedException: Raised when trying to unload a collection
+            that is not loaded.
+        """
+        collection_name = collection.__class__.__name__.lower()
 
         if collection_name not in self.command_collections:
             raise CollectionNotLoadedException(f"Collection {collection} is not loaded")
