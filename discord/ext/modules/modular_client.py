@@ -292,7 +292,7 @@ class ModularCommandClient(discord.Client):
         del self.command_collections[collection_name]
 
     async def close(self) -> None:
-        for _, collection in self.command_collections.items():
+        for _, collection in tuple(self.command_collections.items()):
             try:
                 self.unload_command_collection(collection)
             except Exception:
