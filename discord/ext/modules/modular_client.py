@@ -128,14 +128,7 @@ class CommandCollection:
         return f"<{self.__class__.__name__} name={self.name} commands={len(self.commands)}>"
 
 
-class ModularCommandClient(discord.Client):
-    """
-    A modular application command client.
-
-    Attributes:
-        command_collections (dict): A dictionary of currently loaded CommandCollection objects
-        by non case sensitive names.
-    """
+class ModularCommandClientBase:
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -300,3 +293,25 @@ class ModularCommandClient(discord.Client):
                 pass
 
         await super().close()
+
+
+class ModularCommandClient(ModularCommandClientBase, discord.Client):
+    """
+    Modular command client based on discord.Client.
+
+    Attributes:
+        command_collections (dict): A dictionary of currently loaded CommandCollection objects
+        by non case sensitive names.
+    """
+    pass
+
+
+class AutoShardedModularCommandClient(ModularCommandClientBase, discord.AutoShardedClient):
+    """
+    Modular command client based on discord.AutoShardedClient.
+
+    Attributes:
+        command_collections (dict): A dictionary of currently loaded CommandCollection objects
+        by non case sensitive names.
+    """
+    pass
