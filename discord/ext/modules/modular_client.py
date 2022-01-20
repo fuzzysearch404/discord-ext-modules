@@ -255,7 +255,7 @@ class ModularCommandClient(discord.Client):
             CommandCollectionAlreadyLoadedException: Raised when trying to load a collection
             that is already loaded.
         """
-        collection_name = collection.__class__.__name__.lower()
+        collection_name = collection.name.lower()
 
         if collection_name in self.command_collections:
             raise CollectionAlreadyLoadedException(f"Collection {collection} is already loaded")
@@ -278,7 +278,7 @@ class ModularCommandClient(discord.Client):
             CommandCollectionNotLoadedException: Raised when trying to unload a collection
             that is not loaded.
         """
-        collection_name = collection.__class__.__name__.lower()
+        collection_name = collection.name.lower()
 
         if collection_name not in self.command_collections:
             raise CollectionNotLoadedException(f"Collection {collection} is not loaded")
@@ -290,3 +290,12 @@ class ModularCommandClient(discord.Client):
         #    pass
 
         del self.command_collections[collection_name]
+
+    async def close(self) -> None:
+        for _, collection in self.command_collections:
+            try:
+                self.unload_command_collection(collection)
+            except Exception:
+                pass
+
+        await super().close()
