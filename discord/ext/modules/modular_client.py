@@ -234,7 +234,7 @@ class ModularCommandClientBase:
         Raises:
             KeyError: Raised when the collection is not loaded or the name is not found.
         """
-        return self.command_collections[collection_name]
+        return self.command_collections[collection_name.lower()]
 
     def load_command_collection(self, collection: CommandCollection) -> None:
         """
