@@ -90,9 +90,11 @@ class CommandCollection:
             def cmd_with_collection_check(function):
                 async def wrapper(command):
                     try:
-                        await self.collection_check(command)
+                        await discord.utils.maybe_coroutine(self.collection_check, command)
                     except Exception as ex:
-                        return await self.handle_collection_check_error(command, ex)
+                        return await discord.utils.maybe_coroutine(
+                            self.handle_collection_check_error, command, ex
+                        )
 
                     return await function(command)
 
