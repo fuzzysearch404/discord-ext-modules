@@ -72,7 +72,14 @@ class CommandCollection:
     This class should be subclassed to create new command collections.
     """
 
-    def __init__(self, client, commands: list, name: str = None, description: str = None) -> None:
+    def __init__(
+        self,
+        client,
+        commands: list,
+        name: str = None,
+        description: str = None,
+        check_children: bool = True
+    ) -> None:
         self.client = client
         self.commands = commands
         self.name = name or self.__class__.__name__
@@ -87,20 +94,39 @@ class CommandCollection:
 
         # Attach collection_check to each command callback
         for cmd in commands:
-            def cmd_with_collection_check(function):
-                async def wrapper(command):
-                    try:
-                        await discord.utils.maybe_coroutine(self.collection_check, command)
-                    except Exception as ex:
-                        return await discord.utils.maybe_coroutine(
-                            self.handle_collection_check_error, command, ex
-                        )
+            self._wrap_callback_with_check(cmd)
 
-                    return await function(command)
+            if check_children:
+                for child in self._get_all_children(cmd):
+                    self._wrap_callback_with_check(child)
 
-                return wrapper
+    def _wrap_callback_with_check(self, command) -> None:
+        def cmd_with_collection_check(function):
+            async def wrapper(cmd):
+                try:
+                    await discord.utils.maybe_coroutine(self.collection_check, cmd)
+                except Exception as ex:
+                    return await discord.utils.maybe_coroutine(
+                        self.handle_collection_check_error, cmd, ex
+                    )
 
-            cmd.callback = cmd_with_collection_check(cmd.callback)
+                return await function(cmd)
+
+            return wrapper
+
+        command.callback = cmd_with_collection_check(command.callback)
+
+    def _get_all_children(self, command) -> list:
+        children = []
+
+        if command._children_:
+            for child in command._children_.values():
+                children.append(child)
+
+                if child._children_:
+                    children.extend(self._get_all_children(child))
+
+        return children
 
     async def collection_check(self, command) -> None:
         """
