@@ -148,7 +148,7 @@ class CommandCollection:
     def on_unload(self):
         """
         Called when the collection is unloaded.
-        Used to do some interal cleanup, for example, canceling tasks.
+        Used to do some internal cleanup, for example, canceling tasks.
         """
         ...
 
