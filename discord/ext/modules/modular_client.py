@@ -25,6 +25,20 @@ import discord
 import importlib
 
 
+__all__ = (
+    "ModularCommandClientException",
+    "ModuleSetupException",
+    "ModuleAlreadyLoadedException",
+    "ModuleNotLoadedException",
+    "CollectionSetupException",
+    "CollectionAlreadyLoadedException",
+    "CollectionNotLoadedException",
+    "CommandCollection",
+    "ModularCommandClient",
+    "AutoShardedModularCommandClient"
+)
+
+
 class ModularCommandClientException(Exception):
     """Base exception class for modular command client errors."""
     pass
