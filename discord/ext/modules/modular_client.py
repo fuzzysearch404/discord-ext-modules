@@ -28,8 +28,6 @@ import importlib
 __all__ = (
     "ModularCommandClientException",
     "ModuleSetupException",
-    "ModuleAlreadyLoadedException",
-    "ModuleNotLoadedException",
     "CollectionSetupException",
     "CollectionAlreadyLoadedException",
     "CollectionNotLoadedException",
@@ -46,16 +44,6 @@ class ModularCommandClientException(Exception):
 
 class ModuleSetupException(ModularCommandClientException):
     """Raised when a module setup fails."""
-    pass
-
-
-class ModuleAlreadyLoadedException(ModuleSetupException):
-    """Raised when trying to load a module that is already loaded."""
-    pass
-
-
-class ModuleNotLoadedException(ModuleSetupException):
-    """Raised when trying to unload a module is not loaded."""
     pass
 
 
@@ -176,10 +164,6 @@ class ModularCommandClientBase:
         super().__init__(*args, **kwargs)
         self.command_collections = {}
 
-        self._module_cache = {}
-        self._collections_cache = {}
-        self._unloaded_extensions = set()
-
     def load_extension(self, extension_name: str) -> None:
         """
         Loads a module and sets up its command collections.
@@ -203,18 +187,8 @@ class ModularCommandClientBase:
 
         Raises:
             ModuleSetupException: Raised when the module setup fails.
-            ModuleAlreadyLoadedException: Raised when trying to load a module that is
-            already loaded.
         """
-        if extension_name not in self._module_cache:
-            module = importlib.import_module(extension_name)
-        elif extension_name not in self._unloaded_extensions:
-            raise ModuleAlreadyLoadedException(f"Module {extension_name} is already loaded")
-        else:
-            self._unloaded_extensions.remove(extension_name)
-            module = self._module_cache[extension_name]
-            module = importlib.reload(module)
-            self._module_cache[extension_name] = module
+        module = importlib.import_module(extension_name)
 
         setup_function = getattr(module, "setup", None)
         if not setup_function:
@@ -225,46 +199,8 @@ class ModularCommandClientBase:
         except Exception as e:
             raise ModuleSetupException(f"Module {module} setup function raised: {e}")
 
-        for coll in command_collections:
-            print("Loading collection:", coll.name)
-            self.load_command_collection(coll)
-
-        self._module_cache[extension_name] = module
-        self._collections_cache[extension_name] = command_collections
-
-    def unload_extension(self, extension_name: str) -> None:
-        """
-        Unloads a module and its command collections.
-        This method does not unload the module itself from the memory,
-        but it unloads all of the corresponding command collections.
-
-        Parameters:
-            extension_name (str): The name of the module to unload.
-
-        Raises:
-            ModuleNotLoadedException: Raised when trying to unload a module that is not loaded.
-        """
-        if extension_name not in self._module_cache or extension_name in self._unloaded_extensions:
-            raise ModuleNotLoadedException(f"Module {extension_name} is not loaded")
-
-        command_collections = self._collections_cache[extension_name]
-
-        for coll in command_collections:
-            print("Unloading collection:", coll.name)
-            self.unload_command_collection(coll)
-
-        self._unloaded_extensions.add(extension_name)
-
-    def reload_extension(self, extension_name: str) -> None:
-        """
-        Shortcut for unloading and loading a module.
-        This method is equivalent to calling unload_extension and then load_extension.
-
-        Parameters:
-            extension_name (str): The name of the module to reload.
-        """
-        self.unload_extension(extension_name)
-        self.load_extension(extension_name)
+        for collection in command_collections:
+            self.load_command_collection(collection)
 
     def get_command_collection(self, collection_name: str) -> CommandCollection:
         """
@@ -295,16 +231,15 @@ class ModularCommandClientBase:
         if collection_name in self.command_collections:
             raise CollectionAlreadyLoadedException(f"Collection {collection} is already loaded")
 
-        for cmd in collection.commands:
-            print(f"Adding {cmd._name_} command")
-            self.application_command(cmd)
+        for command in collection.commands:
+            self.application_command(command)
 
         self.command_collections[collection_name] = collection
 
     def unload_command_collection(self, collection: CommandCollection) -> None:
         """
-        Unloads a CommandCollection object from the client and removes the application commands,
-        in that particular collection, from the client.
+        Removes a CommandCollection object from the client.
+        However, this does not remove the application commands in collection from the client.
 
         Parameters:
             collection (CommandCollection): The CommandCollection object to unload.
@@ -319,11 +254,6 @@ class ModularCommandClientBase:
             raise CollectionNotLoadedException(f"Collection {collection} is not loaded")
 
         collection.on_unload()
-
-        # TODO: Unload commands
-        #  for cmd in collection.commands:
-        #    pass
-
         del self.command_collections[collection_name]
 
     @discord.utils.copy_doc(discord.Client.close)
